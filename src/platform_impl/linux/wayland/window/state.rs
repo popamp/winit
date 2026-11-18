@@ -670,7 +670,12 @@ impl WindowState {
 
     /// Try to resize the window when the user can do so.
     pub fn request_inner_size(&mut self, inner_size: Size) -> PhysicalSize<u32> {
-        if self.last_configure.as_ref().map(Self::is_stateless).unwrap_or(true) {
+        // A window the user cannot resize keeps the size the application gives it even
+        // when the compositor reports it as tiled: tiled states don't fix its size, and
+        // COSMIC reports every floating window as tiled on all four edges.
+        let fixed =
+            |c: &WindowConfigure| !self.resizable && !c.is_maximized() && !c.is_fullscreen();
+        if self.last_configure.as_ref().map_or(true, |c| Self::is_stateless(c) || fixed(c)) {
             self.resize(inner_size.to_logical(self.scale_factor()))
         }
 
