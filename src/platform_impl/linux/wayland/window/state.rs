@@ -308,13 +308,17 @@ impl WindowState {
         }
 
         let stateless = Self::is_stateless(&configure);
+        // A window the user cannot resize keeps its size when the compositor tiles or
+        // maximizes it, as COSMIC does when it is dragged to a screen edge or corner,
+        // instead of being stretched over the area.
+        let fixed = !self.resizable && !configure.is_fullscreen();
 
         let (mut new_size, constrain) = if let Some(frame) = self.frame.as_mut() {
             // Configure the window states.
             frame.update_state(configure.state);
 
             match configure.new_size {
-                (Some(width), Some(height)) => {
+                (Some(width), Some(height)) if !fixed => {
                     let (width, height) = frame.subtract_borders(width, height);
                     let width = width.map(|w| w.get()).unwrap_or(1);
                     let height = height.map(|h| h.get()).unwrap_or(1);
@@ -325,7 +329,9 @@ impl WindowState {
             }
         } else {
             match configure.new_size {
-                (Some(width), Some(height)) => ((width.get(), height.get()).into(), false),
+                (Some(width), Some(height)) if !fixed => {
+                    ((width.get(), height.get()).into(), false)
+                },
                 _ if stateless => (self.stateless_size, true),
                 _ => (self.size, true),
             }
